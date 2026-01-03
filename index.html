@@ -15,27 +15,13 @@
       --npda-gray: #f7f7f7;
       --npda-text: #333333;
     }
-    body {
-      font-family: 'Inter', sans-serif;
-      color: var(--npda-text);
-      background-color: var(--npda-gray);
-    }
-    header {
-      background-color: var(--npda-navy);
-      color: white;
-    }
-    .tab-btn.active {
-      border-bottom: 3px solid var(--npda-blue);
-      color: var(--npda-blue);
-    }
-    .tab-slider {
-      transition: transform 0.3s ease;
-      height: 3px;
-      background: var(--npda-blue);
-      position: absolute;
-      bottom: 0;
-      left: 0;
-    }
+    body { font-family: 'Inter', sans-serif; color: var(--npda-text); background-color: var(--npda-gray); }
+    header { background-color: var(--npda-navy); color: white; }
+    .tab-btn.active { border-bottom: 3px solid var(--npda-blue); color: var(--npda-blue); }
+    .tab-slider { transition: transform 0.3s ease; height: 3px; background: var(--npda-blue); position: absolute; bottom: 0; left: 0; }
+    .dropdown { position: relative; display: inline-block; }
+    .dropdown-content { display: none; position: absolute; right: 0; background-color: white; min-width: 180px; border: 1px solid #ddd; box-shadow: 0 4px 8px rgba(0,0,0,0.1); z-index: 10; border-radius: 0.5rem; padding: 0.5rem; }
+    .dropdown:hover .dropdown-content { display: block; }
   </style>
 </head>
 
@@ -52,35 +38,45 @@
   </nav>
 
   <main class="flex-1 p-4 sm:p-6 max-w-7xl mx-auto w-full">
+    <!-- ========================= -->
+    <!-- RESOLUTIONS TAB -->
+    <!-- ========================= -->
     <section id="resTab" class="tab-section block">
       <div class="flex flex-wrap gap-3 mb-4">
         <input id="searchInput" type="text" placeholder="Search resolutions..."
           class="border rounded-lg px-3 py-2 w-full sm:w-64" />
-        <select id="seasonFilter" class="border rounded-lg px-3 py-2">
-          <option value="">All Seasons</option>
-        </select>
-        <select id="regionFilter" class="border rounded-lg px-3 py-2">
-          <option value="">All Regions</option>
-        </select>
-        <select id="tournFilter" class="border rounded-lg px-3 py-2">
-          <option value="">All Tournaments</option>
-        </select>
-        <select id="tagFilter" class="border rounded-lg px-3 py-2">
-          <option value="">All Tags</option>
-        </select>
+        <select id="seasonFilter" class="border rounded-lg px-3 py-2"><option value="">All Seasons</option></select>
+        <select id="regionFilter" class="border rounded-lg px-3 py-2"><option value="">All Regions</option></select>
+        <select id="tournFilter" class="border rounded-lg px-3 py-2"><option value="">All Tournaments</option></select>
+        <select id="tagFilter" class="border rounded-lg px-3 py-2"><option value="">All Tags</option></select>
+      </div>
+
+      <div class="flex justify-end mb-2">
+        <div class="dropdown">
+          <button class="bg-[var(--npda-blue)] text-white font-semibold px-3 py-1 rounded-md hover:bg-blue-600">⚙️ Columns</button>
+          <div class="dropdown-content text-sm">
+            <label class="block"><input type="checkbox" class="colToggle" data-col="Tags" checked> Tags</label>
+            <label class="block"><input type="checkbox" class="colToggle" data-col="Tournament" checked> Tournament</label>
+            <label class="block"><input type="checkbox" class="colToggle" data-col="Season" checked> Season</label>
+            <label class="block"><input type="checkbox" class="colToggle" data-col="Region" checked> Region</label>
+            <label class="block"><input type="checkbox" class="colToggle" data-col="Note" checked> Note</label>
+            <label class="block"><input type="checkbox" class="colToggle" data-col="Novice Rd" checked> Novice Rd</label>
+          </div>
+        </div>
       </div>
 
       <div id="tableContainer" class="overflow-x-auto border rounded-lg bg-white shadow-sm">
-        <table class="min-w-full text-sm text-left">
+        <table id="resTableMain" class="min-w-full text-sm text-left">
           <thead class="bg-gray-100">
-            <tr>
+            <tr id="tableHeader">
               <th class="px-4 py-2">Resolution</th>
               <th class="px-4 py-2">Rd</th>
-              <th class="px-4 py-2">Tags</th>
-              <th class="px-4 py-2">Tournament</th>
-              <th class="px-4 py-2">Season</th>
-              <th class="px-4 py-2">Region</th>
-              <th class="px-4 py-2">Note</th>
+              <th class="px-4 py-2 hidden" data-col="Novice Rd">Novice Rd</th>
+              <th class="px-4 py-2 hidden" data-col="Tags">Tags</th>
+              <th class="px-4 py-2 hidden" data-col="Tournament">Tournament</th>
+              <th class="px-4 py-2 hidden" data-col="Season">Season</th>
+              <th class="px-4 py-2 hidden" data-col="Region">Region</th>
+              <th class="px-4 py-2 hidden" data-col="Note">Note</th>
             </tr>
           </thead>
           <tbody id="resTable" class="divide-y"></tbody>
@@ -89,7 +85,9 @@
       </div>
     </section>
 
-    <!-- Analytics -->
+    <!-- ========================= -->
+    <!-- ANALYTICS TAB -->
+    <!-- ========================= -->
     <section id="anaTab" class="tab-section hidden">
       <div class="grid gap-6 md:grid-cols-2">
         <div class="bg-white p-4 rounded-lg shadow-md">
@@ -115,24 +113,19 @@
       </div>
     </section>
 
+    <!-- ========================= -->
+    <!-- RANDOMIZER TAB -->
+    <!-- ========================= -->
     <section id="randTab" class="tab-section hidden">
       <div class="bg-white rounded-lg p-6 shadow-md max-w-xl mx-auto">
         <h2 class="text-xl font-bold mb-4 text-center">Resolution Randomizer</h2>
         <div class="flex flex-wrap gap-3 justify-center mb-4">
-          <select id="randSeason" class="border rounded-lg px-3 py-2">
-            <option value="">Any Season</option>
-          </select>
-          <select id="randRegion" class="border rounded-lg px-3 py-2">
-            <option value="">Any Region</option>
-          </select>
-          <select id="randTag" class="border rounded-lg px-3 py-2">
-            <option value="">Any Tag</option>
-          </select>
+          <select id="randSeason" class="border rounded-lg px-3 py-2"><option value="">Any Season</option></select>
+          <select id="randRegion" class="border rounded-lg px-3 py-2"><option value="">Any Region</option></select>
+          <select id="randTag" class="border rounded-lg px-3 py-2"><option value="">Any Tag</option></select>
         </div>
         <div class="text-center">
-          <button id="randBtn" class="bg-[var(--npda-blue)] text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-600">
-            🎲 Generate
-          </button>
+          <button id="randBtn" class="bg-[var(--npda-blue)] text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-600">🎲 Generate</button>
         </div>
         <div id="randResult" class="mt-4 text-center text-lg font-medium"></div>
       </div>
@@ -143,11 +136,8 @@
     Built with ❤️ by Vyomesh · Powered by Google Sheets
   </footer>
 <script>
-// ===============================
-// CONFIGURATION
-// ===============================
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz72vNJ7euiXTb6VXo5iU53VWUcSMBFrtO5g-Opl3To5r96biAHybhcb5Klb_0xz47jtw/exec"; // Replace with your actual web app URL
-const API_TOKEN = "HELLO"; // Must match your Apps Script token
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz72vNJ7euiXTb6VXo5iU53VWUcSMBFrtO5g-Opl3To5r96biAHybhcb5Klb_0xz47jtw/exec";
+const API_TOKEN = "HELLO";
 let allData = [];
 
 // ===============================
@@ -159,35 +149,25 @@ async function fetchData() {
     const json = await res.json();
     if (!json.data) throw new Error("No data returned");
     allData = json.data;
-    console.log(`Fetched ${allData.length} rows (cached: ${json.cached})`);
     populateFilters();
     renderTable(allData);
     renderAnalytics(allData);
     populateRandomizer();
   } catch (err) {
-    console.error("Error:", err);
+    console.error("Error loading data:", err);
     alert("Error loading data: " + err.message);
   }
 }
 
 // ===============================
-// FILTERS & TABLE
+// FILTERS & HELPERS
 // ===============================
-function populateFilters() {
-  const seasonSet = new Set(), regionSet = new Set(), tournSet = new Set(), tagSet = new Set();
-  allData.forEach(r => {
-    if (r.Tournament) {
-      const season = extractYear(r.Tournament);
-      if (season) seasonSet.add(season);
-    }
-    if (r.Region) regionSet.add(r.Region);
-    if (r.Tournament) tournSet.add(cleanTournament(r.Tournament));
-    ["Tag1","Tag2","Tag3","geoTag4","geoTag5","Tag6+"].forEach(k => { if (r[k]) tagSet.add(r[k]); });
-  });
-  fillSelect("seasonFilter", seasonSet);
-  fillSelect("regionFilter", regionSet);
-  fillSelect("tournFilter", tournSet);
-  fillSelect("tagFilter", tagSet);
+function extractYear(tournament) {
+  const m = tournament?.match(/\b(20\d{2})\b/);
+  return m ? m[1] : "";
+}
+function cleanTournament(name) {
+  return name?.replace(/\b20\d{2}\b/g, "").trim();
 }
 
 function fillSelect(id, set) {
@@ -200,62 +180,90 @@ function fillSelect(id, set) {
   });
 }
 
-function extractYear(tournament) {
-  const match = tournament.match(/\b(20\d{2})\b/);
-  return match ? match[1] : "";
+function populateFilters() {
+  const seasons = new Set(), regions = new Set(), tourns = new Set(), tags = new Set();
+  allData.forEach(r => {
+    const season = extractYear(r.Tournament);
+    if (season) seasons.add(season);
+    if (r.Region) regions.add(r.Region);
+    if (r.Tournament) tourns.add(cleanTournament(r.Tournament));
+    ["Tag1","Tag2","Tag3","geoTag4","geoTag5","Tag6+"].forEach(k => { if (r[k]) tags.add(r[k]); });
+  });
+  fillSelect("seasonFilter", seasons);
+  fillSelect("regionFilter", regions);
+  fillSelect("tournFilter", tourns);
+  fillSelect("tagFilter", tags);
 }
 
-function cleanTournament(name) {
-  return name.replace(/\b20\d{2}\b/g, "").trim();
+// ===============================
+// COLUMN TOGGLE
+// ===============================
+const columnState = {
+  "Resolution": true, "Rd": true, "Novice Rd": true,
+  "Tags": false, "Tournament": false, "Season": false, "Region": false, "Note": false
+};
+
+document.querySelectorAll(".colToggle").forEach(cb => {
+  const col = cb.dataset.col;
+  cb.checked = columnState[col];
+  cb.addEventListener("change", () => {
+    columnState[col] = cb.checked;
+    updateColumnVisibility();
+    renderTable(allData, true);
+  });
+});
+
+function updateColumnVisibility() {
+  document.querySelectorAll("#tableHeader th[data-col]").forEach(th => {
+    th.classList.toggle("hidden", !columnState[th.dataset.col]);
+  });
 }
 
+// ===============================
+// TABLE RENDERING
+// ===============================
 let visibleRows = 50;
 let filteredData = [];
+
 function renderTable(data, reset = true) {
   const tbody = document.getElementById("resTable");
-  const loading = document.getElementById("loading");
   if (reset) {
     tbody.innerHTML = "";
     filteredData = data.filter(matchesFilter);
     visibleRows = 50;
   }
+
   const slice = filteredData.slice(0, visibleRows);
-  tbody.innerHTML = slice.map(r => `
-      <tr class="hover:bg-gray-50">
-        <td class="px-4 py-2">${r.Resolution || ""}</td>
-        <td class="px-4 py-2">${r.Rd || ""}</td>
-        <td class="px-4 py-2">${[r.Tag1,r.Tag2,r.Tag3,r.geoTag4,r.geoTag5,r["Tag6+"]].filter(Boolean).join(", ")}</td>
-        <td class="px-4 py-2">${r.Tournament || ""}</td>
-        <td class="px-4 py-2">${extractYear(r.Tournament) || ""}</td>
-        <td class="px-4 py-2">${r.Region || ""}</td>
-        <td class="px-4 py-2">${r.Note || ""}</td>
-      </tr>`).join("");
-  if (visibleRows < filteredData.length) loading.classList.remove("hidden");
-  else loading.classList.add("hidden");
+  tbody.innerHTML = slice.map(r => {
+    const cols = [];
+    cols.push(`<td class="px-4 py-2">${r.Resolution || ""}</td>`);
+    cols.push(`<td class="px-4 py-2">${r.Rd || ""}</td>`);
+    if (columnState["Novice Rd"]) cols.push(`<td class="px-4 py-2">${r["N/JV"] || ""}</td>`);
+    if (columnState["Tags"]) cols.push(`<td class="px-4 py-2">${[r.Tag1,r.Tag2,r.Tag3,r.geoTag4,r.geoTag5,r["Tag6+"]].filter(Boolean).join(", ")}</td>`);
+    if (columnState["Tournament"]) cols.push(`<td class="px-4 py-2">${r.Tournament || ""}</td>`);
+    if (columnState["Season"]) cols.push(`<td class="px-4 py-2">${extractYear(r.Tournament) || ""}</td>`);
+    if (columnState["Region"]) cols.push(`<td class="px-4 py-2">${r.Region || ""}</td>`);
+    if (columnState["Note"]) cols.push(`<td class="px-4 py-2">${r.Note || ""}</td>`);
+    return `<tr class="hover:bg-gray-50">${cols.join("")}</tr>`;
+  }).join("");
+  updateColumnVisibility();
 }
 
-const tableContainer = document.getElementById("tableContainer");
-tableContainer.addEventListener("scroll", () => {
-  const nearBottom = tableContainer.scrollTop + tableContainer.clientHeight >= tableContainer.scrollHeight - 200;
-  if (nearBottom && visibleRows < filteredData.length) {
-    visibleRows += 50;
-    renderTable(allData, false);
-  }
-});
-
 function matchesFilter(row) {
-  const search = document.getElementById("searchInput").value.toLowerCase();
+  const search = document.getElementById("searchInput").value.toLowerCase().trim().replace(/['"]/g, "");
   const season = document.getElementById("seasonFilter").value;
   const region = document.getElementById("regionFilter").value;
   const tourn = document.getElementById("tournFilter").value;
   const tag = document.getElementById("tagFilter").value;
+
   const tags = [row.Tag1,row.Tag2,row.Tag3,row.geoTag4,row.geoTag5,row["Tag6+"]].filter(Boolean).map(t=>t.toLowerCase());
-  const textMatch = row.Resolution?.toLowerCase().includes(search) || row.Tournament?.toLowerCase().includes(search);
-  const seasonMatch = !season || extractYear(row.Tournament) === season;
-  const regionMatch = !region || row.Region === region;
-  const tournMatch = !tourn || cleanTournament(row.Tournament) === tourn;
-  const tagMatch = !tag || tags.includes(tag.toLowerCase());
-  return textMatch && seasonMatch && regionMatch && tournMatch && tagMatch;
+  const textFields = [row.Resolution,row.Tournament,row.Region,row.Note,(row["N/JV"]||""),tags.join(" ")].join(" ").toLowerCase();
+
+  return textFields.includes(search)
+      && (!season || extractYear(row.Tournament) === season)
+      && (!region || row.Region === region)
+      && (!tourn || cleanTournament(row.Tournament) === tourn)
+      && (!tag || tags.includes(tag.toLowerCase()));
 }
 
 ["searchInput","seasonFilter","regionFilter","tournFilter","tagFilter"].forEach(id => {
@@ -273,72 +281,105 @@ function renderAnalytics(data) {
   const ctxCommittee = document.getElementById("committeeChart");
   const ctxHeatmap = document.getElementById("tagHeatmap");
   const ctxTrend = document.getElementById("tagTrendChart");
-  Chart.helpers.each(Chart.instances, instance => instance.destroy());
+  Chart.helpers.each(Chart.instances, i => i.destroy?.());
 
   // --- Top Tags ---
   const tagCounts = {};
-  data.forEach(r => ["Tag1","Tag2","Tag3","geoTag4","geoTag5","Tag6+"].forEach(k=>{ if(r[k]) tagCounts[r[k]]=(tagCounts[r[k]]||0)+1; }));
+  data.forEach(r => ["Tag1","Tag2","Tag3","geoTag4","geoTag5","Tag6+"].forEach(k => {
+    if (r[k]) tagCounts[r[k]] = (tagCounts[r[k]] || 0) + 1;
+  }));
   const topTags = Object.entries(tagCounts).sort((a,b)=>b[1]-a[1]).slice(0,10);
-  new Chart(ctxTag,{type:"bar",data:{labels:topTags.map(x=>x[0]),datasets:[{label:"Count",data:topTags.map(x=>x[1]),backgroundColor:"rgba(0,119,200,0.6)"}]},options:{plugins:{legend:{display:false}}}});
+  new Chart(ctxTag, {
+    type: "bar",
+    data: { labels: topTags.map(x=>x[0]), datasets: [{ data: topTags.map(x=>x[1]), backgroundColor: "rgba(0,119,200,0.6)" }] },
+    options: { plugins: { legend: { display: false } } }
+  });
 
   // --- Resolutions by Region ---
-  const regCounts = {};
-  data.forEach(r => { if(r.Region) regCounts[r.Region]=(regCounts[r.Region]||0)+1; });
-  new Chart(ctxRegion,{type:"pie",data:{labels:Object.keys(regCounts),datasets:[{data:Object.values(regCounts)}]}});
+  const regionCounts = {};
+  data.forEach(r => { if (r.Region) regionCounts[r.Region] = (regionCounts[r.Region] || 0) + 1; });
+  new Chart(ctxRegion, { type: "pie", data: { labels: Object.keys(regionCounts), datasets: [{ data: Object.values(regionCounts) }] } });
 
-  // --- Topic Committee Frequency (split by person) ---
+  // --- Topic Committee Frequency (merge Zach Berg variants) ---
   const commCounts = {};
   data.forEach(r => {
-    if(r["Topic Committee"]) {
-      const members = r["Topic Committee"].split(",").map(x => x.trim()).filter(Boolean);
-      members.forEach(m => commCounts[m] = (commCounts[m]||0)+1);
+    if (r["Topic Committee"]) {
+      const members = r["Topic Committee"].split(",").map(x=>x.trim()).filter(Boolean)
+        .map(m => m === "Zach Berg (chair)" ? "Zach Berg" : m);
+      members.forEach(m => commCounts[m] = (commCounts[m] || 0) + 1);
     }
   });
   const commSorted = Object.entries(commCounts).sort((a,b)=>b[1]-a[1]).slice(0,15);
-  new Chart(ctxCommittee,{type:"bar",data:{labels:commSorted.map(x=>x[0]),datasets:[{data:commSorted.map(x=>x[1]),backgroundColor:"rgba(0,119,200,0.6)"}]},options:{plugins:{legend:{display:false}}}});
+  new Chart(ctxCommittee, {
+    type: "bar",
+    data: { labels: commSorted.map(x=>x[0]), datasets: [{ data: commSorted.map(x=>x[1]), backgroundColor: "rgba(0,119,200,0.6)" }] },
+    options: { plugins: { legend: { display: false } } }
+  });
 
   // --- Tag Co-occurrence Heatmap ---
   const tags = Object.keys(tagCounts).slice(0,10);
   const matrix = tags.map(()=>tags.map(()=>0));
   data.forEach(r=>{
     const rowTags = ["Tag1","Tag2","Tag3","geoTag4","geoTag5","Tag6+"].map(k=>r[k]).filter(Boolean);
-    rowTags.forEach((t1,i)=>rowTags.forEach((t2,j)=>{if(tags.includes(t1)&&tags.includes(t2))matrix[tags.indexOf(t1)][tags.indexOf(t2)]++;}));
+    rowTags.forEach((t1,i)=>rowTags.forEach((t2,j)=>{
+      if (tags.includes(t1) && tags.includes(t2)) matrix[tags.indexOf(t1)][tags.indexOf(t2)]++;
+    }));
   });
-  new Chart(ctxHeatmap,{type:"matrix",data:{datasets:[{label:"Co-occurrence",data:tags.flatMap((t,i)=>tags.map((u,j)=>({x:u,y:t,v:matrix[i][j]}))),width:20,height:20,backgroundColor:ctx=>`rgba(0,119,200,${ctx.raw.v/Math.max(...matrix.flat())})`} ]},options:{scales:{x:{type:"category",labels:tags},y:{type:"category",labels:tags}}}});
+  new Chart(ctxHeatmap, {
+    type: "matrix",
+    data: {
+      datasets: [{
+        label: "Co-occurrence",
+        data: tags.flatMap((t,i)=>tags.map((u,j)=>({x:u,y:t,v:matrix[i][j]}))),
+        width: 20, height: 20,
+        backgroundColor: ctx => `rgba(0,119,200,${ctx.raw.v / Math.max(...matrix.flat())})`
+      }]
+    },
+    options: { scales: { x: { type: "category", labels: tags }, y: { type: "category", labels: tags } } }
+  });
 
   // --- Tag Popularity Over Time ---
   const tagTrend = {};
-  data.forEach(r=>{
-    const year = extractYear(r.Tournament)||"Unknown";
-    ["Tag1","Tag2","Tag3","geoTag4","geoTag5","Tag6+"].forEach(k=>{
-      if(r[k]) {
-        if(!tagTrend[r[k]]) tagTrend[r[k]]={};
-        tagTrend[r[k]][year]=(tagTrend[r[k]][year]||0)+1;
+  data.forEach(r => {
+    const year = extractYear(r.Tournament) || "Unknown";
+    ["Tag1","Tag2","Tag3","geoTag4","geoTag5","Tag6+"].forEach(k => {
+      if (r[k]) {
+        if (!tagTrend[r[k]]) tagTrend[r[k]] = {};
+        tagTrend[r[k]][year] = (tagTrend[r[k]][year] || 0) + 1;
       }
     });
   });
   const top5 = Object.entries(tagCounts).sort((a,b)=>b[1]-a[1]).slice(0,5).map(x=>x[0]);
   const years = [...new Set(Object.values(tagTrend).flatMap(o=>Object.keys(o)))].sort();
-  new Chart(ctxTrend,{type:"line",data:{labels:years,datasets:top5.map(tag=>({label:tag,data:years.map(y=>tagTrend[tag][y]||0),fill:false,borderColor:`hsl(${Math.random()*360},70%,50%)`}))}});
+  new Chart(ctxTrend, {
+    type: "line",
+    data: {
+      labels: years,
+      datasets: top5.map(tag => ({
+        label: tag,
+        data: years.map(y => tagTrend[tag][y] || 0),
+        fill: false,
+        borderColor: `hsl(${Math.random()*360},70%,50%)`
+      }))
+    }
+  });
 }
 
 // ===============================
 // RANDOMIZER
 // ===============================
-function populateRandomizer(){
+function populateRandomizer() {
   const seasons=[...new Set(allData.map(r=>extractYear(r.Tournament)).filter(Boolean))];
   const regions=[...new Set(allData.map(r=>r.Region).filter(Boolean))];
   const tags=new Set();
   allData.forEach(r=>["Tag1","Tag2","Tag3","geoTag4","geoTag5","Tag6+"].forEach(k=>{if(r[k])tags.add(r[k]);}));
-  fillSelect("randSeason",seasons);
-  fillSelect("randRegion",regions);
-  fillSelect("randTag",tags);
+  fillSelect("randSeason",seasons); fillSelect("randRegion",regions); fillSelect("randTag",tags);
 }
 document.getElementById("randBtn").addEventListener("click",()=>{
   const s=document.getElementById("randSeason").value;
   const r=document.getElementById("randRegion").value;
   const t=document.getElementById("randTag").value;
-  const filtered=allData.filter(x=>{return (!s||extractYear(x.Tournament)==s)&&(!r||x.Region==r)&&(!t||Object.values(x).includes(t));});
+  const filtered=allData.filter(x=>(!s||extractYear(x.Tournament)==s)&&(!r||x.Region==r)&&(!t||Object.values(x).includes(t)));
   const choice=filtered[Math.floor(Math.random()*filtered.length)];
   document.getElementById("randResult").innerHTML=choice?`<b>${choice.Resolution}</b><br><i>${choice.Tournament}</i>`:"No match found.";
 });
@@ -346,12 +387,8 @@ document.getElementById("randBtn").addEventListener("click",()=>{
 // ===============================
 // TAB SWITCHING
 // ===============================
-const tabRes=document.getElementById("tabRes");
-const tabAna=document.getElementById("tabAna");
-const tabRand=document.getElementById("tabRand");
-const secRes=document.getElementById("resTab");
-const secAna=document.getElementById("anaTab");
-const secRand=document.getElementById("randTab");
+const tabRes=document.getElementById("tabRes"), tabAna=document.getElementById("tabAna"), tabRand=document.getElementById("tabRand");
+const secRes=document.getElementById("resTab"), secAna=document.getElementById("anaTab"), secRand=document.getElementById("randTab");
 const slider=document.getElementById("slider");
 function showTab(tab){
   [secRes,secAna,secRand].forEach(s=>s.classList.add("hidden"));
@@ -364,8 +401,7 @@ tabRes.onclick=()=>showTab("res");
 tabAna.onclick=()=>showTab("ana");
 tabRand.onclick=()=>showTab("rand");
 
-document.addEventListener("DOMContentLoaded",fetchData);
+document.addEventListener("DOMContentLoaded", fetchData);
 </script>
-
 </body>
 </html>
