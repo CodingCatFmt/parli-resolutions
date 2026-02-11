@@ -138,8 +138,19 @@
       class="dropdown-content max-h-60 overflow-y-auto">
     </div>
   </div>
-
 </div>
+<div class="flex items-center gap-2 mt-1 text-xs text-gray-600">
+  <span>Match:</span>
+  <label class="flex items-center gap-1 cursor-pointer">
+    <input type="radio" name="tagMatchMode" value="OR" checked>
+    OR
+  </label>
+  <label class="flex items-center gap-1 cursor-pointer">
+    <input type="radio" name="tagMatchMode" value="AND">
+    AND
+  </label>
+</div>
+
 <div>
   <label class="block text-xs font-semibold mb-1">Level</label>
   <select id="levelFilter" class="border rounded-lg px-3 py-2">
@@ -310,8 +321,6 @@
           <th class="px-4 py-2">End Date</th>
           <th class="px-4 py-2">Topic Committee</th>
           <th class="px-4 py-2">Invite</th>
-          <th class="px-4 py-2">Topic Doc</th>
-          <th class="px-4 py-2">Count</th>
         </tr>
       </thead>
       <tbody id="tournamentTable" class="divide-y"></tbody>
@@ -335,6 +344,15 @@
       <tbody id="tagsTable" class="divide-y"></tbody>
     </table>
   </div>
+  <div class="mt-10 flex flex-col items-center">
+    <h3 class="text-lg font-semibold mb-4">Regions Map</h3>
+    <img
+      src="https://images.squarespace-cdn.com/content/v1/5a80e6a8ccc5c5e243a5e6b9/8bdda439-a03f-4e42-8df3-cef003bc5cf2/regions.png?format=2500w"
+      alt="Regions map"
+      class="max-w-full h-auto rounded-lg border"
+    >
+  </div>
+
 </section>
 
 </main>
@@ -358,6 +376,7 @@ const filterState = {
   tournaments: new Set(),
   tags: new Set(),
   level: "",
+  tagMatchMode: "OR", // "OR" (default) or "AND"
 
   randSeasons: new Set(),
   randRegions: new Set(),
@@ -463,7 +482,7 @@ function fillCheckboxMenu(menuId, values, stateSet, btnId, onChange) {
   const btn = document.getElementById(btnId);
   menu.innerHTML = "";
 
-  [...values].sort().forEach(v => {
+  values.forEach(v => {
     const label = document.createElement("label");
     label.className = "block text-sm cursor-pointer";
 
@@ -559,10 +578,8 @@ function populateFilters() {
       row.Tournament?.match(/\b(20\d{2})\b/)?.[1]
     );
 
-    const rowTags = [
-      row.Tag1, row.Tag2, row.Tag3,
-      row.geoTag4, row.geoTag5, row["Tag6+"]
-    ].filter(Boolean);
+    const rowTags = parseTagsFromString(row.Tags);
+
 
     /* ---------------- SEASON OPTIONS ----------------
        Filter by EVERYTHING EXCEPT season
@@ -572,7 +589,11 @@ function populateFilters() {
       (filterState.tournaments.size === 0 ||
         filterState.tournaments.has(cleanTournamentName(row.Tournament))) &&
       (filterState.tags.size === 0 ||
-        rowTags.some(t => filterState.tags.has(t)))
+              matchesTagFilter(
+        rowTags,
+        filterState.tags,
+        filterState.tagMatchMode
+      ))
         && (!filterState.level || filterState.level === rowLevel)
     ) {
       if (seasonVal) seasonOpts.add(seasonVal);
@@ -586,7 +607,11 @@ function populateFilters() {
       (filterState.tournaments.size === 0 ||
         filterState.tournaments.has(cleanTournamentName(row.Tournament))) &&
       (filterState.tags.size === 0 ||
-        rowTags.some(t => filterState.tags.has(t)))
+              matchesTagFilter(
+        rowTags,
+        filterState.tags,
+        filterState.tagMatchMode
+      ))
         && (!filterState.level || filterState.level === rowLevel)
 
     ) {
@@ -600,7 +625,11 @@ function populateFilters() {
       (filterState.seasons.size === 0 || filterState.seasons.has(seasonVal)) &&
       (filterState.regions.size === 0 || filterState.regions.has(row.Region)) &&
       (filterState.tags.size === 0 ||
-        rowTags.some(t => filterState.tags.has(t)))
+              matchesTagFilter(
+        rowTags,
+        filterState.tags,
+        filterState.tagMatchMode
+      ))
         && (!filterState.level || filterState.level === rowLevel)
 
     ) {
@@ -630,7 +659,11 @@ function populateFilters() {
       (filterState.tournaments.size === 0 ||
         filterState.tournaments.has(cleanTournamentName(row.Tournament))) &&
       (filterState.tags.size === 0 ||
-        rowTags.some(t => filterState.tags.has(t)))
+        matchesTagFilter(
+        rowTags,
+        filterState.tags,
+        filterState.tagMatchMode
+      ))
     ) {
       if (rowLevel) levelOpts.add(rowLevel);
     }
@@ -657,13 +690,15 @@ function populateFilters() {
     filterState.tournaments,
     "tournFilterBtn"
   );
+  const orderedTags = sortTagsNonRegionFirst([...tagOpts]);
 
   fillCheckboxMenu(
     "tagFilterMenu",
-    tagOpts,
+    orderedTags,
     filterState.tags,
     "tagFilterBtn"
   );
+
   const levelSelect = document.getElementById("levelFilter");
   const currentLevel = filterState.level;
 
@@ -770,6 +805,57 @@ function getLevel(row) {
   if (hasNovice) return "Novice";
   return "";
 }
+function parseTagsFromString(tagString) {
+  if (!tagString) return [];
+  return tagString
+    .split(",")
+    .map(t => t.trim())
+    .filter(Boolean);
+}
+function matchesTagFilter(rowTags, selectedTags, mode) {
+  if (selectedTags.size === 0) return true;
+
+  if (mode === "AND") {
+    return [...selectedTags].every(t => rowTags.includes(t));
+  }
+
+  // OR (default)
+  return rowTags.some(t => selectedTags.has(t));
+}
+
+function sortTagsNonRegionFirst(tags) {
+  const regionTags = getRegionTagsFromTagData();
+
+  const nonRegion = [];
+  const region = [];
+
+  tags.forEach(tag => {
+    if (regionTags.has(tag)) {
+      region.push(tag);
+    } else {
+      nonRegion.push(tag);
+    }
+  });
+
+  nonRegion.sort((a, b) => a.localeCompare(b));
+  region.sort((a, b) => a.localeCompare(b));
+
+  return [...nonRegion, ...region];
+}
+
+function getRegionTagsFromTagData() {
+  if (!Array.isArray(tagData) || tagData.length < 7) return new Set();
+
+  const lastSeven = tagData.slice(-7);
+
+  return new Set(
+    lastSeven
+      .map(t => t.Tag || t.Name)
+      .filter(Boolean)
+  );
+}
+
+
 
 /* ===============================
    FILTERING (UNCHANGED)
@@ -781,8 +867,8 @@ function matchesFilter(row) {
     row.Tournament?.match(/\b(20\d{2})\b/)?.[1]
   );
 
-  const rowTags = [row.Tag1,row.Tag2,row.Tag3,row.geoTag4,row.geoTag5,row["Tag6+"]]
-    .filter(Boolean);
+  const rowTags = parseTagsFromString(row.Tags);
+
 
   const text = [
     row.Resolution,
@@ -800,8 +886,11 @@ function matchesFilter(row) {
     && (filterState.regions.size === 0 || filterState.regions.has(row.Region))
     && (filterState.tournaments.size === 0 ||
         filterState.tournaments.has(cleanTournamentName(row.Tournament)))
-    && (filterState.tags.size === 0 ||
-        rowTags.some(t => filterState.tags.has(t)))
+    && matchesTagFilter(
+          rowTags,
+          filterState.tags,
+          filterState.tagMatchMode
+        )
     && (!filterState.level || filterState.level === rowLevel);
 
 }
@@ -837,8 +926,8 @@ function renderAnalytics(data) {
   /* --- Top Tags --- */
   const tagCounts = {};
   data.forEach(r => {
-    ["Tag1","Tag2","Tag3","geoTag4","geoTag5","Tag6+"].forEach(k => {
-      if (r[k]) tagCounts[r[k]] = (tagCounts[r[k]] || 0) + 1;
+    parseTagsFromString(r.Tags).forEach(tag => {
+      tagCounts[tag] = (tagCounts[tag] || 0) + 1;
     });
   });
 
@@ -921,7 +1010,7 @@ function renderAnalytics(data) {
   const matrix = tags.map(()=>tags.map(()=>0));
 
   data.forEach(r => {
-    const rowTags = ["Tag1","Tag2","Tag3","geoTag4","geoTag5","Tag6+"].map(k=>r[k]).filter(Boolean);
+    const rowTags = parseTagsFromString(r.Tags);
     rowTags.forEach(t1 => rowTags.forEach(t2 => {
       if (tags.includes(t1) && tags.includes(t2)) {
         matrix[tags.indexOf(t1)][tags.indexOf(t2)]++;
@@ -946,13 +1035,13 @@ function renderAnalytics(data) {
   const tagTrend = {};
   data.forEach(r => {
     const year = r.Tournament?.match(/\b(20\d{2})\b/)?.[1] || "Unknown";
-    ["Tag1","Tag2","Tag3","geoTag4","geoTag5","Tag6+"].forEach(k => {
-      if (r[k]) {
-        tagTrend[r[k]] ??= {};
-        tagTrend[r[k]][year] = (tagTrend[r[k]][year] || 0) + 1;
-      }
+
+    parseTagsFromString(r.Tags).forEach(tag => {
+      tagTrend[tag] ??= {};
+      tagTrend[tag][year] = (tagTrend[tag][year] || 0) + 1;
     });
   });
+
 
   const top5 = topTags.slice(0,5).map(x=>x[0]);
   const years = [...new Set(Object.values(tagTrend).flatMap(o=>Object.keys(o)))].sort();
@@ -989,10 +1078,7 @@ function renderTournamentTable() {
         ${renderLink(t.Invite, "Invite")}
       </td>
 
-      <td class="px-4 py-2">
-        ${renderLink(t["Topic Doc"], "Doc")}
-      </td>
-      <td class="px-4 py-2">${t.Count || ""}</td>
+      
     </tr>
   `).join("");
 }
@@ -1024,10 +1110,7 @@ function populateRandomizer() {
       row.Tournament?.match(/\b(20\d{2})\b/)?.[1]
     );
 
-    const rowTags = [
-      row.Tag1, row.Tag2, row.Tag3,
-      row.geoTag4, row.geoTag5, row["Tag6+"]
-    ].filter(Boolean);
+    const rowTags = parseTagsFromString(row.Tags);
 
     /* ------------ SEASON OPTIONS ------------
        Filter by Region + Tag ONLY
@@ -1052,6 +1135,10 @@ function populateRandomizer() {
     ) {
       if (row.Region) regionOpts.add(row.Region);
     }
+    if (
+      filterState.tags.size > 0 &&
+      !matchesTagFilter(rowTags, filterState.tags, filterState.tagMatchMode)
+    ) return;
 
     /* ------------ TAG OPTIONS ------------
        Filter by Season + Region ONLY
@@ -1085,10 +1172,11 @@ function populateRandomizer() {
       populateRandomizer();
     }
   );
+  const orderedTags = sortTagsNonRegionFirst([...tagOpts]);
 
   fillCheckboxMenu(
     "randTagMenu",
-    tagOpts,
+    orderedTags,
     randFilterState.tags,
     "randTagBtn",
     () => {
@@ -1105,8 +1193,7 @@ document.getElementById("randBtn").addEventListener("click", () => {
       r.Tournament?.match(/\b(20\d{2})\b/)?.[1]
     );
 
-    const rowTags = [r.Tag1,r.Tag2,r.Tag3,r.geoTag4,r.geoTag5,r["Tag6+"]]
-      .filter(Boolean);
+    const rowTags = parseTagsFromString(r.Tags);
 
     return (randFilterState.seasons.size === 0 ||
             randFilterState.seasons.has(seasonVal))
@@ -1122,6 +1209,13 @@ document.getElementById("randBtn").addEventListener("click", () => {
     choice
       ? `<b>${choice.Resolution}</b><br><i>${choice.Tournament}</i>`
       : "No match found.";
+});
+document.querySelectorAll('input[name="tagMatchMode"]').forEach(radio => {
+  radio.addEventListener("change", e => {
+    filterState.tagMatchMode = e.target.value;
+    populateFilters();
+    renderTable(allData, true);
+  });
 });
 
 
