@@ -11,19 +11,19 @@
 
   <style>
     :root {
-      --npda-navy: #002b49;
-      --npda-blue: #0077c8;
-      --npda-gray: #f7f7f7;
-      --npda-text: #333333;
+      --npdl-navy: #002b49;
+      --npdl-blue: #0077c8;
+      --npdl-gray: #f7f7f7;
+      --npdl-text: #333333;
     }
     tr.bg-yellow-100 {
       transition: background-color 0.5s ease;
     }
 
-    body { font-family: 'Inter', sans-serif; color: var(--npda-text); background-color: var(--npda-gray); }
-    header { background-color: var(--npda-navy); color: white; }
-    .tab-btn.active { border-bottom: 3px solid var(--npda-blue); color: var(--npda-blue); }
-    .tab-slider { transition: transform 0.3s ease; height: 3px; background: var(--npda-blue); position: absolute; bottom: 0; left: 0; }
+    body { font-family: 'Inter', sans-serif; color: var(--npdl-text); background-color: var(--npdl-gray); }
+    header { background-color: var(--npdl-navy); color: white; }
+    .tab-btn.active { border-bottom: 3px solid var(--npdl-blue); color: var(--npdl-blue); }
+    .tab-slider { transition: transform 0.3s ease; height: 3px; background: var(--npdl-blue); position: absolute; bottom: 0; left: 0; }
     .dropdown { position: relative; display: inline-block; }
     .dropdown-content {
       display: none;
@@ -165,7 +165,7 @@
   <!-- COLUMN MENU (CLEANED AS REQUESTED) -->
   <div class="flex justify-end mb-2">
     <div class="dropdown">
-      <button class="bg-[var(--npda-blue)] text-white font-semibold px-3 py-1 rounded-md">⚙️ Columns</button>
+      <button class="bg-[var(--npdl-blue)] text-white font-semibold px-3 py-1 rounded-md">⚙️ Columns</button>
       <div class="dropdown-content text-sm">
         <label class="block"><input type="checkbox" class="colToggle" data-col="Rd" checked> Rd</label>
         <label class="block"><input type="checkbox" class="colToggle" data-col="Novice Rd"> Novice Rd</label>
@@ -183,8 +183,18 @@
   </div>
 
   <!-- TABLE -->
-  <div class="overflow-x-auto border rounded-lg bg-white shadow-sm">
-    <table id="resTableMain" class="min-w-full text-sm text-left">
+  <div id="resTableWrapper" class="relative overflow-x-auto border rounded-lg bg-white shadow-sm">
+
+  <!-- TABLE LOADING OVERLAY -->
+  <div id="tableLoadingOverlay"
+       class="hidden absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-10">
+    <div class="flex flex-col items-center">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--npdl-blue)] mb-2"></div>
+      <span class="text-sm font-medium text-gray-700">Filtering...</span>
+    </div>
+  </div>
+
+  <table id="resTableMain" class="min-w-full text-sm text-left">
       <thead class="bg-gray-100">
         <tr id="tableHeader">
           <th class="px-4 py-2" data-col="Rd">Rd</th>
@@ -293,7 +303,7 @@
 
     </div>
     <div class="text-center">
-      <button id="randBtn" class="bg-[var(--npda-blue)] text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-600">🎲 Generate</button>
+      <button id="randBtn" class="bg-[var(--npdl-blue)] text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-600">🎲 Generate</button>
     </div>
     <div id="randResult" class="mt-4 text-center text-lg font-medium"></div>
   </div>
@@ -388,6 +398,15 @@ const randFilterState = {
   regions: new Set(),
   tags: new Set()
 };
+function showTableLoading() {
+  const overlay = document.getElementById("tableLoadingOverlay");
+  if (overlay) overlay.classList.remove("hidden");
+}
+
+function hideTableLoading() {
+  const overlay = document.getElementById("tableLoadingOverlay");
+  if (overlay) overlay.classList.add("hidden");
+}
 
 
 function formatSeasonFromYear(year) {
@@ -497,6 +516,8 @@ function fillCheckboxMenu(menuId, values, stateSet, btnId, onChange) {
       else stateSet.delete(v);
 
       btn.textContent = stateSet.size ? `${stateSet.size} selected` : "All";
+
+      
 
       if (onChange) {
         onChange();
@@ -670,9 +691,15 @@ function populateFilters() {
 
   });
 
+  const orderedSeasons = [...seasonOpts].sort((a, b) => {
+    const aStart = parseInt(a.split("-")[0], 10);
+    const bStart = parseInt(b.split("-")[0], 10);
+    return aStart - bStart; // chronological (oldest → newest)
+  });
+
   fillCheckboxMenu(
     "seasonFilterMenu",
-    seasonOpts,
+    orderedSeasons,
     filterState.seasons,
     "seasonFilterBtn"
   );
@@ -684,12 +711,17 @@ function populateFilters() {
     "regionFilterBtn"
   );
 
+  const orderedTournaments = [...tournOpts].sort((a, b) =>
+    a.localeCompare(b)
+  );
+
   fillCheckboxMenu(
     "tournFilterMenu",
-    tournOpts,
+    orderedTournaments,
     filterState.tournaments,
     "tournFilterBtn"
   );
+
   const orderedTags = sortTagsNonRegionFirst([...tagOpts]);
 
   fillCheckboxMenu(
@@ -721,6 +753,9 @@ function populateFilters() {
    TABLE RENDERING
    =============================== */
 function renderTable(data, reset = true) {
+  showTableLoading();
+
+  setTimeout(() => {
   const tbody = document.getElementById("resTable");
   if (!tbody) return;
 
@@ -760,10 +795,13 @@ function renderTable(data, reset = true) {
     </tr>
   `).join("");
 
-  updateColumnVisibility();
-  govOppToggle.checked = govOppCols.every(col => columnState[col]);
+      updateColumnVisibility();
+    govOppToggle.checked = govOppCols.every(col => columnState[col]);
 
+    hideTableLoading();
+  }, 0);
 }
+
 
 /* ===============================
    COLUMN TOGGLES
@@ -771,6 +809,7 @@ function renderTable(data, reset = true) {
 document.querySelectorAll(".colToggle").forEach(cb => {
   cb.checked = !!columnState[cb.dataset.col];
   cb.addEventListener("change", () => {
+    
     columnState[cb.dataset.col] = cb.checked;
     renderTable(allData, true);
   });
@@ -784,6 +823,7 @@ const govOppCols = [
 ];
 
 govOppToggle.addEventListener("change", () => {
+  
   govOppCols.forEach(col => {
     columnState[col] = govOppToggle.checked;
   });
@@ -898,12 +938,14 @@ function matchesFilter(row) {
 
 document.getElementById("searchInput")
   .addEventListener("input", () => {
+    
     populateFilters();
     renderTable(allData, true);
   });
 
 document.getElementById("levelFilter")
-  .addEventListener("change", e => {
+    .addEventListener("change", e => {
+    
     filterState.level = e.target.value;
     populateFilters();
     renderTable(allData, true);
@@ -1153,15 +1195,22 @@ function populateRandomizer() {
     }
   });
 
+  const orderedRandSeasons = [...seasonOpts].sort((a, b) => {
+    const aStart = parseInt(a.split("-")[0], 10);
+    const bStart = parseInt(b.split("-")[0], 10);
+    return aStart - bStart;
+  });
+
   fillCheckboxMenu(
     "randSeasonMenu",
-    seasonOpts,
+    orderedRandSeasons,
     randFilterState.seasons,
     "randSeasonBtn",
     () => {
       populateRandomizer();
     }
   );
+
 
   fillCheckboxMenu(
     "randRegionMenu",
@@ -1212,6 +1261,7 @@ document.getElementById("randBtn").addEventListener("click", () => {
 });
 document.querySelectorAll('input[name="tagMatchMode"]').forEach(radio => {
   radio.addEventListener("change", e => {
+    
     filterState.tagMatchMode = e.target.value;
     populateFilters();
     renderTable(allData, true);
