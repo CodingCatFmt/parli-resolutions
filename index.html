@@ -150,6 +150,20 @@
     AND
   </label>
 </div>
+<div>
+  <label class="block text-xs font-semibold mb-1">Exclude Tag</label>
+  <div class="dropdown">
+    <button
+      id="excludeTagFilterBtn"
+      class="border rounded-lg px-3 py-2 bg-white w-48 text-left">
+      All
+    </button>
+    <div
+      id="excludeTagFilterMenu"
+      class="dropdown-content max-h-60 overflow-y-auto">
+    </div>
+  </div>
+</div>
 
 <div>
   <label class="block text-xs font-semibold mb-1">Level</label>
@@ -371,8 +385,8 @@
   Built with ❤️ by Vyomesh · Powered by Google Sheets
 </footer>
 <script>
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwT_QZmlb4YBIoO9Gb9jKF1gO6uzJbGXCVCTeW_SGVu1eVUJkBjeLndejeV1R6LdK9j3A/exec";
-const API_TOKEN = "HELLO";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzj0kM6bFgO0zNC0B8__W7J4a5x93PUHnAWeBjB89BvzLBhpR9Fn8oyND0cnfY4a_15_w/exec";
+const API_TOKEN = "ajZI13Udb345gEdkcse32lFN";
 
 let allData = [];
 let filteredData = [];
@@ -385,6 +399,7 @@ const filterState = {
   regions: new Set(),
   tournaments: new Set(),
   tags: new Set(),
+  excludeTags: new Set(),
   level: "",
   tagMatchMode: "OR", // "OR" (default) or "AND"
 
@@ -515,7 +530,11 @@ function fillCheckboxMenu(menuId, values, stateSet, btnId, onChange) {
       if (cb.checked) stateSet.add(v);
       else stateSet.delete(v);
 
-      btn.textContent = stateSet.size ? `${stateSet.size} selected` : "All";
+      if (btnId === "excludeTagFilterBtn") {
+        btn.textContent = stateSet.size ? `${stateSet.size} selected` : "None";
+      } else {
+        btn.textContent = stateSet.size ? `${stateSet.size} selected` : "All";
+      }
 
       
 
@@ -610,11 +629,10 @@ function populateFilters() {
       (filterState.tournaments.size === 0 ||
         filterState.tournaments.has(cleanTournamentName(row.Tournament))) &&
       (filterState.tags.size === 0 ||
-              matchesTagFilter(
-        rowTags,
-        filterState.tags,
-        filterState.tagMatchMode
-      ))
+        matchesTagFilter(rowTags, filterState.tags, filterState.tagMatchMode))
+        &&
+        (filterState.excludeTags.size === 0 ||
+        !rowTags.some(t => filterState.excludeTags.has(t)))
         && (!filterState.level || filterState.level === rowLevel)
     ) {
       if (seasonVal) seasonOpts.add(seasonVal);
@@ -628,11 +646,10 @@ function populateFilters() {
       (filterState.tournaments.size === 0 ||
         filterState.tournaments.has(cleanTournamentName(row.Tournament))) &&
       (filterState.tags.size === 0 ||
-              matchesTagFilter(
-        rowTags,
-        filterState.tags,
-        filterState.tagMatchMode
-      ))
+      matchesTagFilter(rowTags, filterState.tags, filterState.tagMatchMode))
+      &&
+      (filterState.excludeTags.size === 0 ||
+      !rowTags.some(t => filterState.excludeTags.has(t)))
         && (!filterState.level || filterState.level === rowLevel)
 
     ) {
@@ -646,11 +663,10 @@ function populateFilters() {
       (filterState.seasons.size === 0 || filterState.seasons.has(seasonVal)) &&
       (filterState.regions.size === 0 || filterState.regions.has(row.Region)) &&
       (filterState.tags.size === 0 ||
-              matchesTagFilter(
-        rowTags,
-        filterState.tags,
-        filterState.tagMatchMode
-      ))
+      matchesTagFilter(rowTags, filterState.tags, filterState.tagMatchMode))
+      &&
+      (filterState.excludeTags.size === 0 ||
+      !rowTags.some(t => filterState.excludeTags.has(t)))
         && (!filterState.level || filterState.level === rowLevel)
 
     ) {
@@ -680,11 +696,10 @@ function populateFilters() {
       (filterState.tournaments.size === 0 ||
         filterState.tournaments.has(cleanTournamentName(row.Tournament))) &&
       (filterState.tags.size === 0 ||
-        matchesTagFilter(
-        rowTags,
-        filterState.tags,
-        filterState.tagMatchMode
-      ))
+      matchesTagFilter(rowTags, filterState.tags, filterState.tagMatchMode))
+      &&
+      (filterState.excludeTags.size === 0 ||
+      !rowTags.some(t => filterState.excludeTags.has(t)))
     ) {
       if (rowLevel) levelOpts.add(rowLevel);
     }
@@ -724,12 +739,35 @@ function populateFilters() {
 
   const orderedTags = sortTagsNonRegionFirst([...tagOpts]);
 
+  // Remove tags that are currently excluded from Include list
+  const includeTagOptions = orderedTags.filter(
+    t => !filterState.excludeTags.has(t)
+  );
+
+  // Remove tags that are currently included from Exclude list
+  const excludeTagOptions = orderedTags.filter(
+    t => !filterState.tags.has(t)
+  );
+
   fillCheckboxMenu(
     "tagFilterMenu",
-    orderedTags,
+    includeTagOptions,
     filterState.tags,
     "tagFilterBtn"
   );
+
+  fillCheckboxMenu(
+    "excludeTagFilterMenu",
+    excludeTagOptions,
+    filterState.excludeTags,
+    "excludeTagFilterBtn"
+  );
+  // Ensure correct default labels
+  const tagBtn = document.getElementById("tagFilterBtn");
+  const excludeBtn = document.getElementById("excludeTagFilterBtn");
+
+  if (filterState.tags.size === 0) tagBtn.textContent = "All";
+  if (filterState.excludeTags.size === 0) excludeBtn.textContent = "None";
 
   const levelSelect = document.getElementById("levelFilter");
   const currentLevel = filterState.level;
@@ -908,6 +946,13 @@ function matchesFilter(row) {
   );
 
   const rowTags = parseTagsFromString(row.Tags);
+    // Exclude tag logic
+  if (
+    filterState.excludeTags.size > 0 &&
+    rowTags.some(t => filterState.excludeTags.has(t))
+  ) {
+    return false;
+  }
 
 
   const text = [
