@@ -23,6 +23,7 @@
     body { font-family: 'Inter', sans-serif; color: var(--npdl-text); background-color: var(--npdl-gray); }
     header { background-color: var(--npdl-navy); color: white; }
     .tab-btn.active { border-bottom: 3px solid var(--npdl-blue); color: var(--npdl-blue); }
+    .tab-slider { transition: transform 0.3s ease; height: 3px; background: var(--npdl-blue); position: absolute; bottom: 0; left: 0; }
     .dropdown { position: relative; display: inline-block; }
     .dropdown-content {
       display: none;
@@ -103,6 +104,13 @@
 <!-- RESOLUTIONS TAB -->
 <!-- ========================= -->
 <section id="resTab" class="tab-section block">
+
+  <div
+    id="backToTournament"
+    class="mb-3 text-sm text-blue-600 underline cursor-pointer hidden"
+  >
+    ← Back to Tournament
+  </div>
 
   <!-- FILTERS (UNCHANGED) -->
   <div class="flex flex-wrap gap-3 mb-4">
@@ -195,7 +203,7 @@
   <!-- COLUMN MENU (CLEANED AS REQUESTED) -->
   <div class="flex justify-end mb-2">
     <div class="dropdown">
-      <button class="bg-[var(--npdl-blue)] text-white font-semibold px-3 py-1 rounded-md">⚙️ Columns</button>
+      <button class="bg-[var(--npdl-blue)] text-white font-semibold px-3 py-1 rounded-md">Add Details</button>
       <div class="dropdown-content text-sm">
         <label class="block"><input type="checkbox" class="colToggle" data-col="Rd" checked> Rd</label>
         <label class="block"><input type="checkbox" class="colToggle" data-col="Novice Rd"> Novice Rd</label>
@@ -388,7 +396,7 @@
     id="backToResolution"
     class="mb-3 text-sm text-blue-600 underline cursor-pointer hidden"
   >
-    ← Back to Resolution
+    ← Back to Resolutions
   </div>
 
   <div class="overflow-x-auto border rounded-lg bg-white shadow-sm">
@@ -449,7 +457,9 @@ let allData = [];
 let filteredData = [];
 let tournamentData = [];
 let tagData = [];
+let tournamentNameMap;
 let lastResolutionKey = null;
+let lastTournamentKey = null;
 
 const filterState = {
   seasons: new Set(),
@@ -541,7 +551,7 @@ function jumpToTournament(e) {
       row.scrollIntoView({ behavior: "smooth", block: "center" });
 
       row.classList.add("bg-yellow-100");
-      setTimeout(() => row.classList.remove("bg-yellow-100"), 1500);
+      setTimeout(() => row.classList.remove("bg-yellow-100"), 3000);
     }
   }, 50);
   const backLink = document.getElementById("backToResolution");
@@ -549,6 +559,49 @@ function jumpToTournament(e) {
     backLink.classList.remove("hidden");
   }
 }
+
+function jumpToResolution(e) {
+  lastTournamentKey = e.currentTarget.dataset.tournament || null;
+
+  e.preventDefault();
+
+  const key = e.currentTarget.dataset.tournament;
+  if (!key) return;
+
+  showTab("res");
+
+  // Let the tab render before scrolling
+  setTimeout(() => {
+    // Find all resolutions from this tournament
+    const resolutionRows = document.querySelectorAll(
+      `#resTable tr[data-resolution]`
+    );
+    
+    let firstMatch = null;
+    for (const row of resolutionRows) {
+      const resKey = row.dataset.resolution;
+      // Find the corresponding resolution in allData
+      const resolution = allData.find(r => resolutionKey(r) === resKey);
+      if (resolution && tournamentKey(resolution.Tournament) === key) {
+        firstMatch = row;
+        break;
+      }
+    }
+
+    if (firstMatch) {
+      firstMatch.scrollIntoView({ behavior: "smooth", block: "center" });
+
+      firstMatch.classList.add("bg-yellow-100");
+      setTimeout(() => firstMatch.classList.remove("bg-yellow-100"), 3000);
+    }
+  }, 50);
+
+  const backLink = document.getElementById("backToTournament");
+  if (backLink && lastTournamentKey) {
+    backLink.classList.remove("hidden");
+  }
+}
+
 document
   .getElementById("backToResolution")
   ?.addEventListener("click", () => {
@@ -565,7 +618,28 @@ document
         row.scrollIntoView({ behavior: "smooth", block: "center" });
 
         row.classList.add("bg-yellow-100");
-        setTimeout(() => row.classList.remove("bg-yellow-100"), 1500);
+        setTimeout(() => row.classList.remove("bg-yellow-100"), 3000);
+      }
+    }, 50);
+  });
+
+document
+  .getElementById("backToTournament")
+  ?.addEventListener("click", () => {
+    if (!lastTournamentKey) return;
+
+    showTab("tour");
+
+    setTimeout(() => {
+      const row = document.querySelector(
+        `#tournamentTable tr[data-tournament="${lastTournamentKey}"]`
+      );
+
+      if (row) {
+        row.scrollIntoView({ behavior: "smooth", block: "center" });
+
+        row.classList.add("bg-yellow-100");
+        setTimeout(() => row.classList.remove("bg-yellow-100"), 3000);
       }
     }, 50);
   });
@@ -708,6 +782,7 @@ async function fetchData() {
     allData = json.entry;
     tournamentData = json.tournaments || [];
     tagData = json.tags || [];
+    tournamentNameMap = new Map(tournamentData.map(t => [t.Tournament, t.Name]));
 
     updateAvailableTags();
 
@@ -733,8 +808,6 @@ async function fetchData() {
 function populateFilters() {
   const seasonOpts = new Set();
   const regionOpts = new Set();
-  const tournOpts = new Set();
-  const tagOpts = new Set();
   const levelOpts = new Set();
 
   allData.forEach(row => {
@@ -783,14 +856,9 @@ function populateFilters() {
         && (!filterState.level || filterState.level === rowLevel)
 
     ) {
-      if (row.Tournament)
-        tournOpts.add(cleanTournamentName(row.Tournament));
+      // Tournament options are now from tournamentData
     }
 
-    /* -------- TAG OPTIONS ----------------
-       Show all tags (non-cascading)
-    */
-    rowTags.forEach(t => tagOpts.add(t));
     /* ---------------- LEVEL OPTIONS ----------------
        Filter by EVERYTHING EXCEPT level
     */
@@ -798,7 +866,7 @@ function populateFilters() {
       (filterState.seasons.size === 0 || filterState.seasons.has(seasonVal)) &&
       (filterState.regions.size === 0 || filterState.regions.has(row.Region)) &&
       (filterState.tournaments.size === 0 ||
-        filterState.tournaments.has(cleanTournamentName(row.Tournament))) &&
+        filterState.tournaments.has(tournamentNameMap.get(row.Tournament) || cleanTournamentName(row.Tournament))) &&
       matchesDynamicTagRows(rowTags, filterState.tagRows)
     ) {
       if (rowLevel) levelOpts.add(rowLevel);
@@ -826,25 +894,23 @@ function populateFilters() {
     "regionFilterBtn"
   );
 
-  const orderedTournaments = [...tournOpts].sort((a, b) =>
-    a.localeCompare(b)
-  );
+  const tournOpts = [...new Set(tournamentData.map(t => t.Name).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 
   fillCheckboxMenu(
     "tournFilterMenu",
-    orderedTournaments,
+    tournOpts,
     filterState.tournaments,
     "tournFilterBtn"
   );
 
-  const orderedTags = sortTagsNonRegionFirst([...tagOpts]);
+  const tagOpts = tagData.map(t => t.Tag || t.Name).filter(Boolean);
 
   // Update available tags for dynamic rows
-  allAvailableTags = orderedTags;
+  allAvailableTags = tagOpts;
 
   fillCheckboxMenu(
     "tagFilterMenu",
-    orderedTags,
+    tagOpts,
     filterState.tags,
     "tagFilterBtn"
   );
@@ -1071,7 +1137,7 @@ function matchesFilter(row) {
     && (filterState.seasons.size === 0 || filterState.seasons.has(seasonVal))
     && (filterState.regions.size === 0 || filterState.regions.has(row.Region))
     && (filterState.tournaments.size === 0 ||
-        filterState.tournaments.has(cleanTournamentName(row.Tournament)))
+        filterState.tournaments.has(tournamentNameMap.get(row.Tournament) || cleanTournamentName(row.Tournament)))
     && matchesDynamicTagRows(rowTags, filterState.tagRows)
     && (!filterState.level || filterState.level === rowLevel);
 
@@ -1252,7 +1318,16 @@ function renderTournamentTable() {
       class="hover:bg-gray-50"
       data-tournament="${tournamentKey(t.Tournament)}"
     >
-      <td class="px-4 py-2">${t.Tournament || ""}</td>
+      <td class="px-4 py-2">
+        <a
+          href="#"
+          class="text-blue-600 underline hover:text-blue-800"
+          data-tournament="${tournamentKey(t.Tournament)}"
+          onclick="jumpToResolution(event)"
+        >
+          ${t.Tournament || ""}
+        </a>
+      </td>
       <td class="px-4 py-2">${t.Host || ""}</td>
       <td class="px-4 py-2">${t.Region || ""}</td>
       <td class="px-4 py-2">${t["Start Date"] || ""}</td>
@@ -1287,8 +1362,6 @@ function renderTagsTable() {
 function populateRandomizer() {
   const seasonOpts = new Set();
   const regionOpts = new Set();
-  const tournOpts = new Set();
-  const tagOpts = new Set();
   const levelOpts = new Set();
 
   allData.forEach(row => {
@@ -1334,14 +1407,8 @@ function populateRandomizer() {
       matchesDynamicTagRows(rowTags, randFilterState.tagRows) &&
       (!randFilterState.level || randFilterState.level === rowLevel)
     ) {
-      if (row.Tournament)
-        tournOpts.add(cleanTournamentName(row.Tournament));
+      // Tournament options are now from tournamentData
     }
-
-    /* ------------ TAG OPTIONS ------------
-       Show all tags (non-cascading)
-    */
-    rowTags.forEach(t => tagOpts.add(t));
 
     /* ------------ LEVEL OPTIONS ------------
        Filter by EVERYTHING EXCEPT level
@@ -1350,7 +1417,7 @@ function populateRandomizer() {
       (randFilterState.seasons.size === 0 || randFilterState.seasons.has(seasonVal)) &&
       (randFilterState.regions.size === 0 || randFilterState.regions.has(row.Region)) &&
       (randFilterState.tournaments.size === 0 ||
-        randFilterState.tournaments.has(cleanTournamentName(row.Tournament))) &&
+        randFilterState.tournaments.has(tournamentNameMap.get(row.Tournament) || cleanTournamentName(row.Tournament))) &&
       matchesDynamicTagRows(rowTags, randFilterState.tagRows)
     ) {
       if (rowLevel) levelOpts.add(rowLevel);
@@ -1383,13 +1450,11 @@ function populateRandomizer() {
     }
   );
 
-  const orderedRandTournaments = [...tournOpts].sort((a, b) =>
-    a.localeCompare(b)
-  );
+  const tournOpts = [...new Set(tournamentData.map(t => t.Name).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 
   fillCheckboxMenu(
     "randTournMenu",
-    orderedRandTournaments,
+    tournOpts,
     randFilterState.tournaments,
     "randTournBtn",
     () => {
@@ -1397,14 +1462,14 @@ function populateRandomizer() {
     }
   );
 
-  const orderedRandTags = sortTagsNonRegionFirst([...tagOpts]);
+  const tagOpts = tagData.map(t => t.Tag || t.Name).filter(Boolean);
 
   // Update available tags for dynamic rows
-  allAvailableTags = orderedRandTags;
+  allAvailableTags = tagOpts;
 
   fillCheckboxMenu(
     "randTagMenu",
-    orderedRandTags,
+    tagOpts,
     randFilterState.tags,
     "randTagBtn",
     () => {
@@ -1449,7 +1514,7 @@ document.getElementById("randBtn").addEventListener("click", () => {
       && (randFilterState.regions.size === 0 ||
           randFilterState.regions.has(r.Region))
       && (randFilterState.tournaments.size === 0 ||
-          randFilterState.tournaments.has(cleanTournamentName(r.Tournament)))
+          randFilterState.tournaments.has(tournamentNameMap.get(r.Tournament) || cleanTournamentName(r.Tournament)))
       && matchesDynamicTagRows(rowTags, randFilterState.tagRows)
       && (!randFilterState.level || randFilterState.level === rowLevel);
   });
@@ -1480,11 +1545,7 @@ document.getElementById("randBtn").addEventListener("click", () => {
 let allAvailableTags = [];
 
 function updateAvailableTags() {
-  const tagOpts = new Set();
-  allData.forEach(row => {
-    parseTagsFromString(row.Tags).forEach(t => tagOpts.add(t));
-  });
-  allAvailableTags = sortTagsNonRegionFirst([...tagOpts]);
+  allAvailableTags = tagData.map(t => t.Tag || t.Name).filter(Boolean);
 }
 
 function renderDynamicTagRows() {
@@ -1620,6 +1681,7 @@ const tabTags = document.getElementById("tabTags");
 
 const secTour = document.getElementById("tourTab");
 const secTags = document.getElementById("tagsTab");
+const slider=document.getElementById("slider");
 
 function showTab(tab){
   [secRes, secAna, secRand, secTour, secTags].forEach(s =>
@@ -1631,24 +1693,25 @@ function showTab(tab){
   );
 
 
-  if(tab==="res"){secRes.classList.remove("hidden");tabRes.classList.add("active");}
-  if(tab==="ana"){secAna.classList.remove("hidden");tabAna.classList.add("active");}
+  if(tab==="res"){secRes.classList.remove("hidden");tabRes.classList.add("active");if (slider) slider.style.transform="translateX(0%)";}
+  if(tab==="ana"){secAna.classList.remove("hidden");tabAna.classList.add("active");if (slider) slider.style.transform="translateX(100%)";}
   if(tab==="rand"){
     secRand.classList.remove("hidden");
     tabRand.classList.add("active");
     populateRandomizer();
     renderRandDynamicTagRows();
+    if (slider) slider.style.transform="translateX(200%)";
   }
   if (tab === "tour") {
     secTour.classList.remove("hidden");
     tabTour.classList.add("active");
-    slider.style.transform = "translateX(300%)";
+    if (slider) slider.style.transform = "translateX(300%)";
   }
 
   if (tab === "tags") {
     secTags.classList.remove("hidden");
     tabTags.classList.add("active");
-    slider.style.transform = "translateX(400%)";
+    if (slider) slider.style.transform = "translateX(400%)";
   }
 
 }
