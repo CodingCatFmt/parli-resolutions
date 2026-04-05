@@ -954,7 +954,7 @@ function renderTable(data, reset = true) {
     >
       ${columnState["Rd"] ? `<td class="px-4 py-2">${r.Rd || ""}</td>` : ""}
       ${columnState["Novice Rd"] ? `<td class="px-4 py-2">${r["N/JV"] || ""}</td>` : ""}
-      <td class="px-4 py-2">${r.Resolution || ""}</td>
+      <td class="px-4 py-2">${(r.Resolution || "").replace(/\n/g, '<br>')}</td>
       ${columnState["Tournament"] ? `
         <td class="px-4 py-2">
           <a
@@ -969,7 +969,7 @@ function renderTable(data, reset = true) {
         </td>
       ` : ""}
 
-      ${columnState["Note"] ? `<td class="px-4 py-2">${r.Note || ""}</td>` : ""}
+      ${columnState["Note"] ? `<td class="px-4 py-2">${(r.Note || "").replace(/\n/g, '<br>')}</td>` : ""}
       ${columnState["Gov Wins"] ? `<td class="px-4 py-2">${r["Gov Wins"] ?? ""}</td>` : ""}
       ${columnState["Opp Wins"] ? `<td class="px-4 py-2">${r["Opp Wins"] ?? ""}</td>` : ""}
       ${columnState["Gov Ballots"] ? `<td class="px-4 py-2">${r["Gov Ballots"] ?? ""}</td>` : ""}
@@ -1535,7 +1535,7 @@ document.getElementById("randBtn").addEventListener("click", () => {
 
   document.getElementById("randResult").innerHTML =
     choices.length > 0
-      ? choices.map((choice, idx) => `<div class="mb-3"><b>${idx + 1}. ${choice.Resolution}</b><br><i>${choice.Tournament}</i></div>`).join("")
+      ? choices.map((choice, idx) => `<div class="mb-3"><b>${idx + 1}. ${choice.Resolution.replace(/\n/g, '<br>')}</b><br><i>${choice.Tournament}</i></div>`).join("")
       : "No match found.";
 });
 
