@@ -166,7 +166,11 @@
 
     <div>
   <label class="block text-xs font-semibold mb-1">Tag</label>
-  <div class="flex gap-2 items-start">
+  <div class="dynamic-tag-row flex gap-2 items-center">
+    <select id="tagFilterType" class="border rounded-lg px-3 py-2 bg-white">
+      <option value="include">Include</option>
+      <option value="exclude">Exclude</option>
+    </select>
     <div class="dropdown">
       <button
         id="tagFilterBtn"
@@ -184,10 +188,8 @@
       Add Tag
     </button>
   </div>
+  <div id="dynamicTagContainer" class="mt-3 flex flex-col gap-2"></div>
 </div>
-
-<!-- Dynamic Tag Rows Container -->
-<div id="dynamicTagContainer" class="mt-3 space-y-2"></div>
 
 <div>
   <label class="block text-xs font-semibold mb-1">Level</label>
@@ -200,7 +202,7 @@
 
   </div>
 
-  <!-- COLUMN MENU (CLEANED AS REQUESTED) -->
+  <!-- COLUMN MENU -->
   <div class="flex justify-end mb-2">
     <div class="dropdown">
       <button class="bg-[var(--npdl-blue)] text-white font-semibold px-3 py-1 rounded-md">Add Details</button>
@@ -341,7 +343,11 @@
 
       <div>
   <label class="block text-xs font-semibold mb-1">Tag</label>
-  <div class="flex gap-2 items-start">
+  <div class="dynamic-tag-row flex gap-2 items-center">
+    <select id="randTagFilterType" class="border rounded-lg px-3 py-2 bg-white">
+      <option value="include">Include</option>
+      <option value="exclude">Exclude</option>
+    </select>
     <div class="dropdown">
       <button
         id="randTagBtn"
@@ -360,7 +366,7 @@
     </button>
   </div>
   <!-- Dynamic Tag Rows Container for Randomizer -->
-  <div id="randDynamicTagContainer" class="mt-3 space-y-2"></div>
+  <div id="randDynamicTagContainer" class="mt-3 flex flex-col gap-2"></div>
 </div>
 
       <div>
@@ -466,6 +472,7 @@ const filterState = {
   regions: new Set(),
   tournaments: new Set(),
   tags: new Set(),
+  tagFilterType: "include",
   tagRows: [], // Array of {type: 'include'|'exclude', tag: string}
   level: "",
   exactTournament: null, // For filtering to a specific tournament instance
@@ -480,6 +487,7 @@ const randFilterState = {
   regions: new Set(),
   tournaments: new Set(),
   tags: new Set(),
+  tagFilterType: "include",
   tagRows: [], // Array of {type: 'include'|'exclude', tag: string}
   level: ""
 };
@@ -639,13 +647,14 @@ document
     }, 50);
   });
 
-function fillCheckboxMenu(menuId, values, stateSet, btnId, onChange) {
+function fillCheckboxMenu(menuId, values, stateSet, btnId, onChange, options = {}) {
   const menu = document.getElementById(menuId);
   const btn = document.getElementById(btnId);
   menu.innerHTML = "";
+  const hideAll = options.hideAll === true || btnId === "excludeTagFilterBtn";
 
   // Add "All" option at the top (except for exclude filters)
-  if (btnId !== "excludeTagFilterBtn") {
+  if (!hideAll) {
     const allLabel = document.createElement("label");
     allLabel.className = "block text-sm cursor-pointer font-semibold pb-1 mb-2 border-b";
     
@@ -688,13 +697,24 @@ function fillCheckboxMenu(menuId, values, stateSet, btnId, onChange) {
   }
 
   const updateAllItemCheckboxes = () => {
-    menu.querySelectorAll('input[type="checkbox"]:not(:first-child)').forEach(cb => {
+    const selector = hideAll
+      ? 'input[type="checkbox"]'
+      : 'input[type="checkbox"]:not(:first-child)';
+    menu.querySelectorAll(selector).forEach(cb => {
       cb.checked = stateSet.has(cb.value);
     });
   };
 
   const updateButtonText = () => {
-    if (btnId === "excludeTagFilterBtn") {
+    if (hideAll) {
+      if (stateSet.size === 0) {
+        btn.textContent = "Select Tags";
+      } else if (stateSet.size === values.length) {
+        btn.textContent = "All";
+      } else {
+        btn.textContent = `${stateSet.size} selected`;
+      }
+    } else if (btnId === "excludeTagFilterBtn") {
       btn.textContent = stateSet.size ? `${stateSet.size} selected` : "None";
     } else {
       if (stateSet.size === 0) {
@@ -721,7 +741,7 @@ function fillCheckboxMenu(menuId, values, stateSet, btnId, onChange) {
       if (cb.checked) stateSet.add(v);
       else stateSet.delete(v);
 
-      if (btnId !== "excludeTagFilterBtn") {
+      if (!hideAll) {
         const allCbInMenu = menu.querySelector('input[type="checkbox"]');
         if (allCbInMenu) {
           allCbInMenu.checked = values.length > 0 && values.every(v => stateSet.has(v));
@@ -823,7 +843,7 @@ function populateFilters() {
       (filterState.regions.size === 0 || filterState.regions.has(row.Region)) &&
       (filterState.tournaments.size === 0 ||
         filterState.tournaments.has(tournamentNameMap.get(row.Tournament) || cleanTournamentName(row.Tournament))) &&
-      matchesDynamicTagRows(rowTags, filterState.tagRows)
+      matchesDynamicTagRows(rowTags, filterState.tagRows, filterState.tags, filterState.tagFilterType)
         && (!filterState.level || filterState.level === rowLevel)
     ) {
       if (seasonVal) seasonOpts.add(seasonVal);
@@ -836,7 +856,7 @@ function populateFilters() {
       (filterState.seasons.size === 0 || filterState.seasons.has(seasonVal)) &&
       (filterState.tournaments.size === 0 ||
         filterState.tournaments.has(tournamentNameMap.get(row.Tournament) || cleanTournamentName(row.Tournament))) &&
-      matchesDynamicTagRows(rowTags, filterState.tagRows)
+      matchesDynamicTagRows(rowTags, filterState.tagRows, filterState.tags, filterState.tagFilterType)
         && (!filterState.level || filterState.level === rowLevel)
 
     ) {
@@ -849,7 +869,7 @@ function populateFilters() {
     if (
       (filterState.seasons.size === 0 || filterState.seasons.has(seasonVal)) &&
       (filterState.regions.size === 0 || filterState.regions.has(row.Region)) &&
-      matchesDynamicTagRows(rowTags, filterState.tagRows)
+      matchesDynamicTagRows(rowTags, filterState.tagRows, filterState.tags, filterState.tagFilterType)
         && (!filterState.level || filterState.level === rowLevel)
 
     ) {
@@ -864,7 +884,7 @@ function populateFilters() {
       (filterState.regions.size === 0 || filterState.regions.has(row.Region)) &&
       (filterState.tournaments.size === 0 ||
         filterState.tournaments.has(tournamentNameMap.get(row.Tournament) || cleanTournamentName(row.Tournament))) &&
-      matchesDynamicTagRows(rowTags, filterState.tagRows)
+      matchesDynamicTagRows(rowTags, filterState.tagRows, filterState.tags, filterState.tagFilterType)
     ) {
       if (rowLevel) levelOpts.add(rowLevel);
     }
@@ -909,7 +929,9 @@ function populateFilters() {
     "tagFilterMenu",
     tagOpts,
     filterState.tags,
-    "tagFilterBtn"
+    "tagFilterBtn",
+    null,
+    { hideAll: filterState.tagFilterType === "exclude" }
   );
 
   const levelSelect = document.getElementById("levelFilter");
@@ -1050,30 +1072,42 @@ function matchesTagFilter(rowTags, selectedTags, mode) {
   return rowTags.some(t => selectedTags.has(t));
 }
 
-function matchesDynamicTagRows(rowTags, tagRows) {
+function matchesDynamicTagRows(rowTags, tagRows, mainTagSet = filterState.tags, mainTagType = filterState.tagFilterType) {
   // Check exclude conditions (these always apply if present)
-  for (const row of tagRows) {
-    if (row.type === "exclude") {
-      // Exclude: row should NOT have this tag
-      if (rowTags.includes(row.tag)) {
-        return false;
-      }
-    }
-  }
-
-  // Check include conditions (all must be present if any exist)
-  const includeRows = tagRows.filter(r => r.type === "include");
-  for (const row of includeRows) {
-    // Include: row should have this tag
-    if (!rowTags.includes(row.tag)) {
+  const excludeRows = tagRows.filter(r => r.type === "exclude");
+  for (const row of excludeRows) {
+    // Exclude: row should NOT have ANY of these tags
+    const tags = Array.isArray(row.tags) ? row.tags : [row.tags];
+    if (tags.some(tag => rowTags.includes(tag))) {
       return false;
     }
   }
 
-  // If main tags are selected, check if row has at least one main tag (OR logic)
-  if (filterState.tags.size > 0) {
-    const hasMainTag = [...filterState.tags].some(t => rowTags.includes(t));
-    if (!hasMainTag) return false;
+  // If there are exclude rows and the resolution has no tags, exclude it
+  // (since it doesn't contribute meaningfully to exclude filtering)
+  if (excludeRows.length > 0 && rowTags.length === 0) {
+    return false;
+  }
+
+  // Check include conditions (at least one tag from each include row must be present)
+  const includeRows = tagRows.filter(r => r.type === "include");
+  for (const row of includeRows) {
+    // Include: row should have at least one of the selected tags (OR logic)
+    const tags = Array.isArray(row.tags) ? row.tags : [row.tags];
+    if (tags.length > 0 && !tags.some(tag => rowTags.includes(tag))) {
+      return false;
+    }
+  }
+
+  if (mainTagSet.size > 0) {
+    if (mainTagType === "exclude") {
+      if (rowTags.length === 0) return false;
+      const hasMainTag = [...mainTagSet].some(t => rowTags.includes(t));
+      if (hasMainTag) return false;
+    } else {
+      const hasMainTag = [...mainTagSet].some(t => rowTags.includes(t));
+      if (!hasMainTag) return false;
+    }
   }
 
   return true;
@@ -1147,7 +1181,7 @@ function matchesFilter(row) {
     && (filterState.regions.size === 0 || filterState.regions.has(row.Region))
     && (filterState.tournaments.size === 0 ||
       filterState.tournaments.has(tournamentNameMap.get(row.Tournament) || cleanTournamentName(row.Tournament)))
-    && matchesDynamicTagRows(rowTags, filterState.tagRows)
+    && matchesDynamicTagRows(rowTags, filterState.tagRows, filterState.tags, filterState.tagFilterType)
     && (!filterState.level || filterState.level === rowLevel);
 
 }
@@ -1391,7 +1425,7 @@ function populateRandomizer() {
       (randFilterState.regions.size === 0 || randFilterState.regions.has(row.Region)) &&
       (randFilterState.tournaments.size === 0 ||
         randFilterState.tournaments.has(tournamentNameMap.get(row.Tournament) || cleanTournamentName(row.Tournament))) &&
-      matchesDynamicTagRows(rowTags, randFilterState.tagRows) &&
+      matchesDynamicTagRows(rowTags, randFilterState.tagRows, randFilterState.tags, randFilterState.tagFilterType) &&
       (!randFilterState.level || randFilterState.level === rowLevel)
     ) {
       if (seasonVal) seasonOpts.add(seasonVal);
@@ -1404,7 +1438,7 @@ function populateRandomizer() {
       (randFilterState.seasons.size === 0 || randFilterState.seasons.has(seasonVal)) &&
       (randFilterState.tournaments.size === 0 ||
         randFilterState.tournaments.has(tournamentNameMap.get(row.Tournament) || cleanTournamentName(row.Tournament))) &&
-      matchesDynamicTagRows(rowTags, randFilterState.tagRows) &&
+      matchesDynamicTagRows(rowTags, randFilterState.tagRows, randFilterState.tags, randFilterState.tagFilterType) &&
       (!randFilterState.level || randFilterState.level === rowLevel)
     ) {
       if (row.Region) regionOpts.add(row.Region);
@@ -1416,7 +1450,7 @@ function populateRandomizer() {
     if (
       (randFilterState.seasons.size === 0 || randFilterState.seasons.has(seasonVal)) &&
       (randFilterState.regions.size === 0 || randFilterState.regions.has(row.Region)) &&
-      matchesDynamicTagRows(rowTags, randFilterState.tagRows) &&
+      matchesDynamicTagRows(rowTags, randFilterState.tagRows, randFilterState.tags, randFilterState.tagFilterType) &&
       (!randFilterState.level || randFilterState.level === rowLevel)
     ) {
       // Tournament options are now from tournamentData
@@ -1430,7 +1464,7 @@ function populateRandomizer() {
       (randFilterState.regions.size === 0 || randFilterState.regions.has(row.Region)) &&
       (randFilterState.tournaments.size === 0 ||
         randFilterState.tournaments.has(tournamentNameMap.get(row.Tournament) || cleanTournamentName(row.Tournament))) &&
-      matchesDynamicTagRows(rowTags, randFilterState.tagRows)
+      matchesDynamicTagRows(rowTags, randFilterState.tagRows, randFilterState.tags, randFilterState.tagFilterType)
     ) {
       if (rowLevel) levelOpts.add(rowLevel);
     }
@@ -1486,9 +1520,9 @@ function populateRandomizer() {
     "randTagBtn",
     () => {
       populateRandomizer();
-    }
+    },
+    { hideAll: randFilterState.tagFilterType === "exclude" }
   );
-
   const levelSelect = document.getElementById("randLevelFilter");
   const currentLevel = randFilterState.level;
 
@@ -1509,6 +1543,19 @@ document.getElementById("randLevelFilter")
     populateRandomizer();
   });
 
+document.getElementById("tagFilterType")
+  .addEventListener("change", e => {
+    filterState.tagFilterType = e.target.value;
+    filterState.exactTournament = null;
+    populateFilters();
+    renderTable(allData, true);
+  });
+
+document.getElementById("randTagFilterType")
+  .addEventListener("change", e => {
+    randFilterState.tagFilterType = e.target.value;
+    populateRandomizer();
+  });
 
 
 document.getElementById("randBtn").addEventListener("click", () => {
@@ -1527,7 +1574,7 @@ document.getElementById("randBtn").addEventListener("click", () => {
           randFilterState.regions.has(r.Region))
       && (randFilterState.tournaments.size === 0 ||
           randFilterState.tournaments.has(tournamentNameMap.get(r.Tournament) || cleanTournamentName(r.Tournament)))
-      && matchesDynamicTagRows(rowTags, randFilterState.tagRows)
+      && matchesDynamicTagRows(rowTags, randFilterState.tagRows, randFilterState.tags, randFilterState.tagFilterType)
       && (!randFilterState.level || randFilterState.level === rowLevel);
   });
 
@@ -1578,22 +1625,105 @@ function renderDynamicTagRows() {
     typeSelect.addEventListener("change", (e) => {
       filterState.tagRows[index].type = e.target.value;
         filterState.exactTournament = null;
+      renderDynamicTagRows();
       populateFilters();
       renderTable(allData, true);
     });
 
-    // Tag Select
-    const tagSelect = document.createElement("select");
-    tagSelect.innerHTML = allAvailableTags.map(t => `
-      <option value="${t}">${t}</option>
-    `).join("");
-    tagSelect.value = row.tag;
-    tagSelect.addEventListener("change", (e) => {
-      filterState.tagRows[index].tag = e.target.value;
+    // Tag Dropdown (Checkbox-based, matching other filter UIs)
+    const dropdownDiv = document.createElement("div");
+    dropdownDiv.className = "dropdown";
+    
+    const tagBtn = document.createElement("button");
+    tagBtn.className = "border rounded-lg px-3 py-2 bg-white w-48 text-left";
+    tagBtn.style.borderColor = "#ddd";
+    tagBtn.style.minHeight = "38px";
+    tagBtn.textContent = "Select Tags";
+    
+    const selectedTags = Array.isArray(row.tags) ? [...row.tags] : (row.tags ? [row.tags] : []);
+    const updateButtonText = () => {
+      if (selectedTags.length === 0) {
+        tagBtn.textContent = "Select Tags";
+      } else if (selectedTags.length === allAvailableTags.length) {
+        tagBtn.textContent = "All";
+      } else {
+        tagBtn.textContent = `${selectedTags.length} selected`;
+      }
+    };
+    updateButtonText();
+    
+    const dropdownMenu = document.createElement("div");
+    dropdownMenu.className = "dropdown-content max-h-60 overflow-y-auto";
+    
+    // "All" checkbox (only for Include type, not for Exclude)
+    const updateCheckboxes = () => {
+      dropdownMenu.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        if (cb !== allCb) {
+          cb.checked = selectedTags.includes(cb.value);
+        }
+      });
+      if (allCb) {
+        allCb.checked = selectedTags.length === allAvailableTags.length && allAvailableTags.length > 0;
+        allCb.indeterminate = selectedTags.length > 0 && selectedTags.length < allAvailableTags.length;
+      }
+    };
+    
+    let allCb = null;
+    if (row.type === "include") {
+      const allLabel = document.createElement("label");
+      allLabel.className = "block text-sm cursor-pointer font-semibold pb-1 mb-2 border-b";
+      allCb = document.createElement("input");
+      allCb.type = "checkbox";
+      allCb.className = "mr-2";
+      allCb.checked = selectedTags.length === allAvailableTags.length && allAvailableTags.length > 0;
+      allCb.indeterminate = selectedTags.length > 0 && selectedTags.length < allAvailableTags.length;
+      allCb.addEventListener("change", () => {
+        if (allCb.checked) {
+          selectedTags.length = 0;
+          selectedTags.push(...allAvailableTags);
+        } else {
+          selectedTags.length = 0;
+        }
+        updateButtonText();
+        updateCheckboxes();
+        filterState.tagRows[index].tags = [...selectedTags];
         filterState.exactTournament = null;
-      populateFilters();
-      renderTable(allData, true);
+        populateFilters();
+        renderTable(allData, true);
+      });
+      allLabel.append(allCb, document.createTextNode("All"));
+      dropdownMenu.appendChild(allLabel);
+    }
+    
+    // Individual tag checkboxes
+    allAvailableTags.forEach(tag => {
+      const label = document.createElement("label");
+      label.className = "block text-sm cursor-pointer";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.value = tag;
+      cb.checked = selectedTags.includes(tag);
+      cb.className = "mr-2";
+      cb.addEventListener("change", () => {
+        if (cb.checked) {
+          if (!selectedTags.includes(tag)) selectedTags.push(tag);
+        } else {
+          const idx = selectedTags.indexOf(tag);
+          if (idx > -1) selectedTags.splice(idx, 1);
+        }
+        updateButtonText();
+        updateCheckboxes();
+        filterState.tagRows[index].tags = [...selectedTags];
+        filterState.exactTournament = null;
+        populateFilters();
+        renderTable(allData, true);
+      });
+      label.append(cb, document.createTextNode(tag));
+      dropdownMenu.appendChild(label);
     });
+    
+    dropdownDiv.appendChild(tagBtn);
+    dropdownDiv.appendChild(dropdownMenu);
 
     // Remove Button
     const removeBtn = document.createElement("button");
@@ -1609,7 +1739,7 @@ function renderDynamicTagRows() {
     });
 
     rowDiv.appendChild(typeSelect);
-    rowDiv.appendChild(tagSelect);
+    rowDiv.appendChild(dropdownDiv);
     rowDiv.appendChild(removeBtn);
     container.appendChild(rowDiv);
   });
@@ -1632,19 +1762,100 @@ function renderRandDynamicTagRows() {
     typeSelect.value = row.type;
     typeSelect.addEventListener("change", (e) => {
       randFilterState.tagRows[index].type = e.target.value;
+      renderRandDynamicTagRows();
       populateRandomizer();
     });
 
-    // Tag Select
-    const tagSelect = document.createElement("select");
-    tagSelect.innerHTML = allAvailableTags.map(t => `
-      <option value="${t}">${t}</option>
-    `).join("");
-    tagSelect.value = row.tag;
-    tagSelect.addEventListener("change", (e) => {
-      randFilterState.tagRows[index].tag = e.target.value;
-      populateRandomizer();
+    // Tag Dropdown (Checkbox-based, matching other filter UIs)
+    const dropdownDiv = document.createElement("div");
+    dropdownDiv.className = "dropdown";
+    
+    const tagBtn = document.createElement("button");
+    tagBtn.className = "border rounded-lg px-3 py-2 bg-white w-48 text-left";
+    tagBtn.style.borderColor = "#ddd";
+    tagBtn.style.minHeight = "38px";
+    tagBtn.textContent = "Select Tags";
+    
+    const selectedTags = Array.isArray(row.tags) ? [...row.tags] : (row.tags ? [row.tags] : []);
+    const updateButtonText = () => {
+      if (selectedTags.length === 0) {
+        tagBtn.textContent = "Select Tags";
+      } else if (selectedTags.length === allAvailableTags.length) {
+        tagBtn.textContent = "All";
+      } else {
+        tagBtn.textContent = `${selectedTags.length} selected`;
+      }
+    };
+    updateButtonText();
+    
+    const dropdownMenu = document.createElement("div");
+    dropdownMenu.className = "dropdown-content max-h-60 overflow-y-auto";
+    
+    // "All" checkbox (only for Include type, not for Exclude)
+    const updateCheckboxes = () => {
+      dropdownMenu.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        if (cb !== allCb) {
+          cb.checked = selectedTags.includes(cb.value);
+        }
+      });
+      if (allCb) {
+        allCb.checked = selectedTags.length === allAvailableTags.length && allAvailableTags.length > 0;
+        allCb.indeterminate = selectedTags.length > 0 && selectedTags.length < allAvailableTags.length;
+      }
+    };
+    
+    let allCb = null;
+    if (row.type === "include") {
+      const allLabel = document.createElement("label");
+      allLabel.className = "block text-sm cursor-pointer font-semibold pb-1 mb-2 border-b";
+      allCb = document.createElement("input");
+      allCb.type = "checkbox";
+      allCb.className = "mr-2";
+      allCb.checked = selectedTags.length === allAvailableTags.length && allAvailableTags.length > 0;
+      allCb.indeterminate = selectedTags.length > 0 && selectedTags.length < allAvailableTags.length;
+      allCb.addEventListener("change", () => {
+        if (allCb.checked) {
+          selectedTags.length = 0;
+          selectedTags.push(...allAvailableTags);
+        } else {
+          selectedTags.length = 0;
+        }
+        updateButtonText();
+        updateCheckboxes();
+        randFilterState.tagRows[index].tags = [...selectedTags];
+        populateRandomizer();
+      });
+      allLabel.append(allCb, document.createTextNode("All"));
+      dropdownMenu.appendChild(allLabel);
+    }
+    
+    // Individual tag checkboxes
+    allAvailableTags.forEach(tag => {
+      const label = document.createElement("label");
+      label.className = "block text-sm cursor-pointer";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.value = tag;
+      cb.checked = selectedTags.includes(tag);
+      cb.className = "mr-2";
+      cb.addEventListener("change", () => {
+        if (cb.checked) {
+          if (!selectedTags.includes(tag)) selectedTags.push(tag);
+        } else {
+          const idx = selectedTags.indexOf(tag);
+          if (idx > -1) selectedTags.splice(idx, 1);
+        }
+        updateButtonText();
+        updateCheckboxes();
+        randFilterState.tagRows[index].tags = [...selectedTags];
+        populateRandomizer();
+      });
+      label.append(cb, document.createTextNode(tag));
+      dropdownMenu.appendChild(label);
     });
+    
+    dropdownDiv.appendChild(tagBtn);
+    dropdownDiv.appendChild(dropdownMenu);
 
     // Remove Button
     const removeBtn = document.createElement("button");
@@ -1658,16 +1869,15 @@ function renderRandDynamicTagRows() {
     });
 
     rowDiv.appendChild(typeSelect);
-    rowDiv.appendChild(tagSelect);
+    rowDiv.appendChild(dropdownDiv);
     rowDiv.appendChild(removeBtn);
     container.appendChild(rowDiv);
   });
 }
 
 document.getElementById("addTagBtn").addEventListener("click", () => {
-  // Add a new row with a default tag if available
-  const defaultTag = allAvailableTags.length > 0 ? allAvailableTags[0] : "";
-  filterState.tagRows.push({ type: "include", tag: defaultTag });
+  // Add a new row with empty tags array (user can select multiple)
+  filterState.tagRows.push({ type: "include", tags: [] });
     filterState.exactTournament = null;
   renderDynamicTagRows();
   populateFilters();
@@ -1675,9 +1885,8 @@ document.getElementById("addTagBtn").addEventListener("click", () => {
 });
 
 document.getElementById("randAddTagBtn").addEventListener("click", () => {
-  // Add a new row with a default tag if available
-  const defaultTag = allAvailableTags.length > 0 ? allAvailableTags[0] : "";
-  randFilterState.tagRows.push({ type: "include", tag: defaultTag });
+  // Add a new row with empty tags array (user can select multiple)
+  randFilterState.tagRows.push({ type: "include", tags: [] });
   renderRandDynamicTagRows();
   populateRandomizer();
 });
