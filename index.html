@@ -790,7 +790,9 @@ const columnState = {
    =============================== */
 async function fetchData() {
   try {
-    const res = await fetch(`${APPS_SCRIPT_URL}?token=${API_TOKEN}`);
+    const res = await fetch(
+      'https://CodingCatFmt.github.io/npdl-resolutions-database/database.json'
+    );
     const json = await res.json();
 
     if (!json.entry || !Array.isArray(json.entry)) {
